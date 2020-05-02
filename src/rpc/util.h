@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include <boost/variant.hpp>
+#include <variant>
 
 /**
  * String used to describe UNIX epoch time in documentation, factored out to a
@@ -144,7 +144,7 @@ struct RPCArg {
          */
         OMITTED,
     };
-    using Fallback = boost::variant<Optional, /* default value for optional args */ std::string>;
+    using Fallback = std::variant<Optional, /* default value for optional args */ std::string>;
     const std::string m_names; //!< The name of the arg (can be empty for inner args, can contain multiple aliases separated by | for named request arguments)
     const Type m_type;
     const bool m_hidden;

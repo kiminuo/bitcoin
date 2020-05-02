@@ -209,7 +209,7 @@ std::string EncodeExtKey(const CExtKey& key)
 
 std::string EncodeDestination(const CTxDestination& dest)
 {
-    return boost::apply_visitor(DestinationEncoder(Params()), dest);
+    return std::visit(DestinationEncoder(Params()), dest);
 }
 
 CTxDestination DecodeDestination(const std::string& str)
