@@ -11,6 +11,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
+#include <util/types.h>
 
 #include <tuple>
 
@@ -209,65 +210,52 @@ CTxDestination AddAndGetMultisigDestination(const int required, const std::vecto
     return dest;
 }
 
-class DescribeAddressVisitor : public boost::static_visitor<UniValue>
-{
-public:
-    explicit DescribeAddressVisitor() {}
+constexpr auto DescribeAddressVisitor = [](const auto& dest) -> UniValue {
+    using DestType = std::decay_t<decltype(dest)>;
 
-    UniValue operator()(const CNoDestination& dest) const
-    {
+    if constexpr (std::is_same_v<DestType, CNoDestination>) {
         return UniValue(UniValue::VOBJ);
-    }
-
-    UniValue operator()(const PKHash& keyID) const
-    {
+    } else if constexpr (std::is_same_v<DestType, PKHash>) {
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", false);
         obj.pushKV("iswitness", false);
         return obj;
-    }
-
-    UniValue operator()(const ScriptHash& scriptID) const
-    {
+    } else if constexpr (std::is_same_v<DestType, ScriptHash>) {
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", true);
         obj.pushKV("iswitness", false);
         return obj;
-    }
-
-    UniValue operator()(const WitnessV0KeyHash& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessV0KeyHash>) {
+        const WitnessV0KeyHash& id = dest;
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", false);
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id));
         return obj;
-    }
-
-    UniValue operator()(const WitnessV0ScriptHash& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessV0ScriptHash>) {
+        const WitnessV0ScriptHash& id = dest;
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("isscript", true);
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id));
         return obj;
-    }
-
-    UniValue operator()(const WitnessUnknown& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessUnknown>) {
+        const WitnessUnknown& id = dest;
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", (int)id.version);
         obj.pushKV("witness_program", HexStr(Span<const unsigned char>(id.program, id.length)));
         return obj;
+    } else {
+        static_assert(always_false<DestType>::value, "non-exhaustive visitor!");
     }
 };
 
 UniValue DescribeAddress(const CTxDestination& dest)
 {
-    return std::visit(DescribeAddressVisitor(), dest);
+    return std::visit(DescribeAddressVisitor, dest);
 }
 
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target)

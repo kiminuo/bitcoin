@@ -8,6 +8,7 @@
 #include <crypto/sha256.h>
 #include <pubkey.h>
 #include <script/script.h>
+#include <util/types.h>
 
 #include <string>
 
@@ -255,46 +256,36 @@ bool ExtractDestinations(const CScript& scriptPubKey, TxoutType& typeRet, std::v
     return true;
 }
 
-namespace
-{
-class CScriptVisitor : public boost::static_visitor<CScript>
-{
-public:
-    CScript operator()(const CNoDestination& dest) const
-    {
+namespace {
+constexpr auto CScriptVisitor = [](const auto& dest) -> CScript {
+    using DestType = std::decay_t<decltype(dest)>;
+
+    if constexpr (std::is_same_v<DestType, CNoDestination>) {
         return CScript();
-    }
-
-    CScript operator()(const PKHash& keyID) const
-    {
+    } else if constexpr (std::is_same_v<DestType, PKHash>) {
+        const PKHash& keyID = dest;
         return CScript() << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
-    }
-
-    CScript operator()(const ScriptHash& scriptID) const
-    {
+    } else if constexpr (std::is_same_v<DestType, ScriptHash>) {
+        const ScriptHash& scriptID = dest;
         return CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
-    }
-
-    CScript operator()(const WitnessV0KeyHash& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessV0KeyHash>) {
+        const WitnessV0KeyHash& id = dest;
         return CScript() << OP_0 << ToByteVector(id);
-    }
-
-    CScript operator()(const WitnessV0ScriptHash& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessV0ScriptHash>) {
+        const WitnessV0ScriptHash& id = dest;
         return CScript() << OP_0 << ToByteVector(id);
-    }
-
-    CScript operator()(const WitnessUnknown& id) const
-    {
+    } else if constexpr (std::is_same_v<DestType, WitnessUnknown>) {
+        const WitnessUnknown& id = dest;
         return CScript() << CScript::EncodeOP_N(id.version) << std::vector<unsigned char>(id.program, id.program + id.length);
+    } else {
+        static_assert(always_false<DestType>::value, "non-exhaustive visitor!");
     }
 };
 } // namespace
 
 CScript GetScriptForDestination(const CTxDestination& dest)
 {
-    return std::visit(CScriptVisitor(), dest);
+    return std::visit(CScriptVisitor, dest);
 }
 
 CScript GetScriptForRawPubKey(const CPubKey& pubKey)
