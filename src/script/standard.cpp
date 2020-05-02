@@ -294,7 +294,7 @@ public:
 
 CScript GetScriptForDestination(const CTxDestination& dest)
 {
-    return boost::apply_visitor(CScriptVisitor(), dest);
+    return std::visit(CScriptVisitor(), dest);
 }
 
 CScript GetScriptForRawPubKey(const CPubKey& pubKey)
@@ -326,5 +326,5 @@ CScript GetScriptForWitness(const CScript& redeemscript)
 }
 
 bool IsValidDestination(const CTxDestination& dest) {
-    return dest.which() != 0;
+    return dest.index() != 0;
 }
