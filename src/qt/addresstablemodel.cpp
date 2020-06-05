@@ -11,7 +11,6 @@
 #include <wallet/wallet.h>
 
 #include <algorithm>
-#include <typeinfo>
 
 #include <QFont>
 #include <QDebug>
@@ -82,7 +81,7 @@ public:
         {
             for (const auto& address : wallet.getAddresses())
             {
-                if (pk_hash_only && address.dest.type() != typeid(PKHash))
+                if (pk_hash_only && std::holds_alternative<PKHash>(address.dest))
                     continue;
                 AddressTableEntry::Type addressType = translateTransactionType(
                         QString::fromStdString(address.purpose), address.is_mine);
