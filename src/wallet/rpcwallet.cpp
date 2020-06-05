@@ -3471,7 +3471,7 @@ UniValue rescanblockchain(const JSONRPCRequest& request)
     return response;
 }
 
-class DescribeWalletAddressVisitor : public boost::static_visitor<UniValue>
+class DescribeWalletAddressVisitor
 {
 public:
     const SigningProvider * const provider;

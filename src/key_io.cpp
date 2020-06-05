@@ -8,16 +8,13 @@
 #include <bech32.h>
 #include <util/strencodings.h>
 
-#include <boost/variant/apply_visitor.hpp>
-#include <boost/variant/static_visitor.hpp>
-
 #include <assert.h>
 #include <string.h>
 #include <algorithm>
 
 namespace
 {
-class DestinationEncoder : public boost::static_visitor<std::string>
+class DestinationEncoder
 {
 private:
     const CChainParams& m_params;
