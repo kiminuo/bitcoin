@@ -14,6 +14,7 @@
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
+#include <random.h>
 
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -123,7 +124,8 @@ void ReleaseDirectoryLocks()
 
 bool DirIsWritable(const fs::path& directory)
 {
-    fs::path tmpFile = directory / fs::unique_path();
+    FastRandomContext rnd;
+    fs::path tmpFile = directory / HexStr(rnd.randbytes(8));
 
     FILE* file = fsbridge::fopen(tmpFile, "a");
     if (!file) return false;
@@ -662,7 +664,7 @@ fs::path GetDefaultDataDir()
     if (pszHome == nullptr || strlen(pszHome) == 0)
         pathRet = fs::path("/");
     else
-        pathRet = fs::path(pszHome);
+        pathRet = fs::u8path(pszHome);
 #ifdef MAC_OSX
     // macOS
     return pathRet / "Library/Application Support/Bitcoin";
@@ -701,7 +703,7 @@ const fs::path &GetBlocksDir()
     if (!path.empty()) return path;
 
     if (gArgs.IsArgSet("-blocksdir")) {
-        path = fs::system_complete(gArgs.GetArg("-blocksdir", ""));
+        path = fs::absolute(gArgs.GetArg("-blocksdir", ""));
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -728,7 +730,7 @@ const fs::path &GetDataDir(bool fNetSpecific)
 
     std::string datadir = gArgs.GetArg("-datadir", "");
     if (!datadir.empty()) {
-        path = fs::system_complete(datadir);
+        path = fs::absolute(fs::u8path(datadir));
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -736,8 +738,9 @@ const fs::path &GetDataDir(bool fNetSpecific)
     } else {
         path = GetDefaultDataDir();
     }
-    if (fNetSpecific)
-        path /= BaseParams().DataDir();
+    if (fNetSpecific) {
+        path = fsbridge::AbsPathJoin(path, BaseParams().DataDir());
+    }
 
     if (fs::create_directories(path)) {
         // This is the first run, create wallets subdirectory too
@@ -751,7 +754,7 @@ const fs::path &GetDataDir(bool fNetSpecific)
 bool CheckDataDirOption()
 {
     std::string datadir = gArgs.GetArg("-datadir", "");
-    return datadir.empty() || fs::is_directory(fs::system_complete(datadir));
+    return datadir.empty() || fs::is_directory(fs::absolute(datadir));
 }
 
 void ClearDatadirCache()
@@ -1258,16 +1261,6 @@ void SetupEnvironment()
     // Set the default input/output charset is utf-8
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
-#endif
-    // The path locale is lazy initialized and to avoid deinitialization errors
-    // in multithreading environments, it is set explicitly by the main thread.
-    // A dummy locale is used to extract the internal default locale, used by
-    // fs::path, which is then used to explicitly imbue the path.
-    std::locale loc = fs::path::imbue(std::locale::classic());
-#ifndef WIN32
-    fs::path::imbue(loc);
-#else
-    fs::path::imbue(std::locale(loc, new std::codecvt_utf8_utf16<wchar_t>()));
 #endif
 }
 

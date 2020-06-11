@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(util_datadir)
     ClearDatadirCache();
     const fs::path dd_norm = GetDataDir();
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/");
+    gArgs.ForceSetArg("-datadir", dd_norm.string());
     ClearDatadirCache();
     BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
 
@@ -58,11 +58,11 @@ BOOST_AUTO_TEST_CASE(util_datadir)
     ClearDatadirCache();
     BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/./");
+    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.");
     ClearDatadirCache();
     BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.//");
+    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/./.");
     ClearDatadirCache();
     BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
 }
@@ -1816,7 +1816,8 @@ BOOST_AUTO_TEST_CASE(test_DirIsWritable)
     BOOST_CHECK_EQUAL(DirIsWritable(tmpdirname), true);
 
     // Should not be able to write to a non-existent dir.
-    tmpdirname = tmpdirname / fs::unique_path();
+    FastRandomContext rnd;
+    tmpdirname = tmpdirname / HexStr(rnd.randbytes(8));
     BOOST_CHECK_EQUAL(DirIsWritable(tmpdirname), false);
 
     fs::create_directory(tmpdirname);
