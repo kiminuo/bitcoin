@@ -35,7 +35,7 @@ static bool IsBerkeleyBtree(const fs::path& path)
 
     // A Berkeley DB Btree file has at least 4K.
     // This check also prevents opening lock files.
-    boost::system::error_code ec;
+    std::error_code ec;
     auto size = fs::file_size(path, ec);
     if (ec) LogPrintf("%s: %s %s\n", __func__, ec.message(), path.string());
     if (size < 4096) return false;
@@ -59,7 +59,7 @@ std::vector<fs::path> ListWalletDir()
     const fs::path wallet_dir = GetWalletDir();
     const size_t offset = wallet_dir.string().size() + 1;
     std::vector<fs::path> paths;
-    boost::system::error_code ec;
+    std::error_code ec;
 
     for (auto it = fs::recursive_directory_iterator(wallet_dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
         if (ec) {
