@@ -306,7 +306,7 @@ static UniValue getrawchangeaddress(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: This wallet has no available keys");
     }
 
-    OutputType output_type = pwallet->m_default_change_type.get_value_or(pwallet->m_default_address_type);
+    OutputType output_type = pwallet->m_default_change_type.value_or(pwallet->m_default_address_type);
     if (!request.params[0].isNull()) {
         if (!ParseOutputType(request.params[0].get_str(), output_type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[0].get_str()));
@@ -592,7 +592,7 @@ static UniValue signmessage(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
     }
 
-    const PKHash *pkhash = boost::get<PKHash>(&dest);
+    const PKHash *pkhash = std::get_if<PKHash>(&dest);
     if (!pkhash) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
     }
@@ -2863,7 +2863,7 @@ static UniValue listunspent(const JSONRPCRequest& request)
             std::unique_ptr<SigningProvider> provider = pwallet->GetSolvingProvider(scriptPubKey);
             if (provider) {
                 if (scriptPubKey.IsPayToScriptHash()) {
-                    const CScriptID& hash = CScriptID(boost::get<ScriptHash>(address));
+                    const CScriptID& hash = CScriptID(std::get<ScriptHash>(address));
                     CScript redeemScript;
                     if (provider->GetCScript(hash, redeemScript)) {
                         entry.pushKV("redeemScript", HexStr(redeemScript));
@@ -2873,7 +2873,7 @@ static UniValue listunspent(const JSONRPCRequest& request)
                             bool extracted = ExtractDestination(redeemScript, witness_destination);
                             CHECK_NONFATAL(extracted);
                             // Also return the witness script
-                            const WitnessV0ScriptHash& whash = boost::get<WitnessV0ScriptHash>(witness_destination);
+                            const WitnessV0ScriptHash& whash = std::get<WitnessV0ScriptHash>(witness_destination);
                             CScriptID id;
                             CRIPEMD160().Write(whash.begin(), whash.size()).Finalize(id.begin());
                             CScript witnessScript;
@@ -2883,7 +2883,7 @@ static UniValue listunspent(const JSONRPCRequest& request)
                         }
                     }
                 } else if (scriptPubKey.IsPayToWitnessScriptHash()) {
-                    const WitnessV0ScriptHash& whash = boost::get<WitnessV0ScriptHash>(address);
+                    const WitnessV0ScriptHash& whash = std::get<WitnessV0ScriptHash>(address);
                     CScriptID id;
                     CRIPEMD160().Write(whash.begin(), whash.size()).Finalize(id.begin());
                     CScript witnessScript;
@@ -3471,7 +3471,7 @@ UniValue rescanblockchain(const JSONRPCRequest& request)
     return response;
 }
 
-class DescribeWalletAddressVisitor : public boost::static_visitor<UniValue>
+class DescribeWalletAddressVisitor
 {
 public:
     const SigningProvider * const provider;
@@ -3490,7 +3490,7 @@ public:
             UniValue subobj(UniValue::VOBJ);
             UniValue detail = DescribeAddress(embedded);
             subobj.pushKVs(detail);
-            UniValue wallet_detail = boost::apply_visitor(*this, embedded);
+            UniValue wallet_detail = std::visit(*this, embedded);
             subobj.pushKVs(wallet_detail);
             subobj.pushKV("address", EncodeDestination(embedded));
             subobj.pushKV("scriptPubKey", HexStr(subscript));
@@ -3573,7 +3573,7 @@ static UniValue DescribeWalletAddress(const CWallet* const pwallet, const CTxDes
         provider = pwallet->GetSolvingProvider(script);
     }
     ret.pushKVs(detail);
-    ret.pushKVs(boost::apply_visitor(DescribeWalletAddressVisitor(provider.get()), dest));
+    ret.pushKVs(std::visit(DescribeWalletAddressVisitor(provider.get()), dest));
     return ret;
 }
 
