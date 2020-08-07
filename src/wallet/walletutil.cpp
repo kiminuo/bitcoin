@@ -68,7 +68,6 @@ std::vector<fs::path> ListWalletDir()
         }
 
         // Get wallet path relative to walletdir by removing walletdir from the wallet path.
-        // This can be replaced by boost::filesystem::lexically_relative once boost is bumped to 1.60.
         const fs::path path = it->path().string().substr(offset);
 
         if (it->status().type() == fs::file_type::directory && IsBerkeleyBtree(it->path() / "wallet.dat")) {
