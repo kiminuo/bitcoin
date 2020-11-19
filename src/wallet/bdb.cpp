@@ -846,7 +846,7 @@ bool IsBDBFile(const fs::path& path)
 
     // A Berkeley DB Btree file has at least 4K.
     // This check also prevents opening lock files.
-    boost::system::error_code ec;
+    std::error_code ec;
     auto size = fs::file_size(path, ec);
     if (ec) LogPrintf("%s: %s %s\n", __func__, ec.message(), path.string());
     if (size < 4096) return false;
