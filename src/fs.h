@@ -21,6 +21,15 @@ namespace fs = boost::filesystem;
 namespace fsbridge {
     FILE *fopen(const fs::path& p, const char *mode);
 
+    /**
+     * Helper function for joining paths
+     *
+     * @param[in] base  Absolute path
+     * @param[in] path  Path to combine with base
+     * @returns path if it is an absolute path, otherwise base joined with path
+     */
+    fs::path AbsPathJoin(const fs::path& base, const fs::path& path);
+
     class FileLock
     {
     public:
