@@ -740,6 +740,7 @@ static fs::path g_blocks_path_cache_net_specific;
 static fs::path pathCached;
 static fs::path pathCachedNetSpecific;
 static RecursiveMutex csPathCached;
+static Mutex g_datadir_mutex;
 
 const fs::path &GetBlocksDir()
 {
@@ -767,6 +768,32 @@ const fs::path &GetBlocksDir()
     return path;
 }
 
+void GetDataDir(ArgsManager& argsManager, bool fNetSpecific, fs::path* path)
+{
+    LOCK(g_datadir_mutex);
+    std::string datadir = argsManager.GetArg("-datadir", "");
+    if (!datadir.empty()) {
+        path = fs::system_complete(datadir);
+        if (!fs::is_directory(path)) {
+            path = "";
+            return;
+        }
+    } else {
+        path = GetDefaultDataDir();
+    }
+    if (fNetSpecific)
+        path /= BaseParams().DataDir();
+
+    if (!fs::exists(path)) {
+        if (fs::create_directories(path)) {
+            // This is the first run, create wallets subdirectory too
+            fs::create_directories(path / "wallets");
+        }
+    }
+
+    path = StripRedundantLastElementsOfPath(path);
+}
+
 const fs::path &GetDataDir(bool fNetSpecific)
 {
     LOCK(csPathCached);
@@ -776,25 +803,7 @@ const fs::path &GetDataDir(bool fNetSpecific)
     // this function
     if (!path.empty()) return path;
 
-    std::string datadir = gArgs.GetArg("-datadir", "");
-    if (!datadir.empty()) {
-        path = fs::system_complete(datadir);
-        if (!fs::is_directory(path)) {
-            path = "";
-            return path;
-        }
-    } else {
-        path = GetDefaultDataDir();
-    }
-    if (fNetSpecific)
-        path /= BaseParams().DataDir();
-
-    if (fs::create_directories(path)) {
-        // This is the first run, create wallets subdirectory too
-        fs::create_directories(path / "wallets");
-    }
-
-    path = StripRedundantLastElementsOfPath(path);
+    GetDataDir(gArgs, fNetSpecific, path);
     return path;
 }
 

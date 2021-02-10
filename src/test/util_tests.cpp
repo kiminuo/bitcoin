@@ -46,28 +46,6 @@ namespace BCLog {
 
 BOOST_FIXTURE_TEST_SUITE(util_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(util_datadir)
-{
-    ClearDatadirCache();
-    const fs::path dd_norm = GetDataDir();
-
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
-
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
-
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/./");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
-
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.//");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
-}
-
 BOOST_AUTO_TEST_CASE(util_check)
 {
     // Check that Assert can forward
@@ -302,6 +280,32 @@ public:
         }
     }
 };
+
+BOOST_AUTO_TEST_CASE(util_datadir)
+{
+    TestArgsManager testArgs;
+
+    fs::path dd_norm;
+    GetDataDir(testArgs, /* net specific */ true, dd_norm);
+
+    fs::path path;
+
+    testArgs.ForceSetArg("-datadir", dd_norm.string() + "/");
+    GetDataDir(testArgs, /* net specific */ true, &path);
+    BOOST_CHECK_EQUAL(dd_norm, path);
+
+    testArgs.ForceSetArg("-datadir", dd_norm.string() + "/.");
+    GetDataDir(testArgs, /* net specific */ true, &path);
+    BOOST_CHECK_EQUAL(dd_norm, path);
+
+    testArgs.ForceSetArg("-datadir", dd_norm.string() + "/./");
+    GetDataDir(testArgs, /* net specific */ true, &path);
+    BOOST_CHECK_EQUAL(dd_norm, path);
+
+    testArgs.ForceSetArg("-datadir", dd_norm.string() + "/.//");
+    GetDataDir(testArgs, /* net specific */ true, &path);
+    BOOST_CHECK_EQUAL(dd_norm, path);
+}
 
 BOOST_FIXTURE_TEST_CASE(util_CheckValue, CheckValueTest)
 {
