@@ -767,21 +767,14 @@ const fs::path &GetBlocksDir()
     return path;
 }
 
-const fs::path &GetDataDir(bool fNetSpecific)
+fs::path GetDataDir(ArgsManager& argsManager, bool fNetSpecific)
 {
-    LOCK(csPathCached);
-    fs::path &path = fNetSpecific ? pathCachedNetSpecific : pathCached;
-
-    // Cache the path to avoid calling fs::create_directories on every call of
-    // this function
-    if (!path.empty()) return path;
-
-    std::string datadir = gArgs.GetArg("-datadir", "");
+    fs::path path;
+    std::string datadir = argsManager.GetArg("-datadir", "");
     if (!datadir.empty()) {
         path = fs::system_complete(datadir);
         if (!fs::is_directory(path)) {
-            path = "";
-            return path;
+            return "";
         }
     } else {
         path = GetDefaultDataDir();
@@ -795,6 +788,19 @@ const fs::path &GetDataDir(bool fNetSpecific)
     }
 
     path = StripRedundantLastElementsOfPath(path);
+    return path;
+}
+
+const fs::path &GetDataDir(bool fNetSpecific)
+{
+    LOCK(csPathCached);
+    fs::path &path = fNetSpecific ? pathCachedNetSpecific : pathCached;
+
+    // Cache the path to avoid calling fs::create_directories on every call of
+    // this function
+    if (!path.empty()) return path;
+
+    path = GetDataDir(gArgs, fNetSpecific);
     return path;
 }
 

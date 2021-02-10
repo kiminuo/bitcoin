@@ -36,6 +36,7 @@
 #include <vector>
 
 class UniValue;
+class ArgsManager;
 
 // Application startup time (used for uptime calculation)
 int64_t GetStartupTime();
@@ -94,6 +95,16 @@ fs::path GetDefaultDataDir();
 // The blocks directory is always net specific.
 const fs::path &GetBlocksDir();
 const fs::path &GetDataDir(bool fNetSpecific = true);
+
+/**
+ * Get data directory path.
+ *
+ * @param argsManager Arguments manager instance.
+ * @param fnetSpecific Append network identifier to the path.
+ * @return Directory path.
+ */
+fs::path GetDataDir(ArgsManager& argsManager, bool fNetSpecific = true);
+
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
 /** Tests only */
