@@ -48,24 +48,39 @@ BOOST_FIXTURE_TEST_SUITE(util_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(util_datadir)
 {
-    ClearDatadirCache();
-    const fs::path dd_norm = GetDataDir();
+    const fs::path datadir_path = fs::temp_directory_path() / "test_common_" PACKAGE_NAME / g_insecure_rand_ctx.rand256().ToString();
+    fs::create_directories(datadir_path);
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
+    ArgsManager argsManager;
+    argsManager.ForceSetArg("-datadir", datadir_path.string());
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
+    fs::path dd_norm;
+    GetDataDir(argsManager, /* net specific */ true, &dd_norm);
 
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/./");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
-
-    gArgs.ForceSetArg("-datadir", dd_norm.string() + "/.//");
-    ClearDatadirCache();
-    BOOST_CHECK_EQUAL(dd_norm, GetDataDir());
+    {
+        fs::path path;
+        argsManager.ForceSetArg("-datadir", dd_norm.string() + "/");
+        GetDataDir(argsManager, /* net specific */ true, &path);
+        BOOST_CHECK_EQUAL(dd_norm, path);
+    }
+    {
+        fs::path path;
+        argsManager.ForceSetArg("-datadir", dd_norm.string() + "/.");
+        GetDataDir(argsManager, /* net specific */ true, &path);
+        BOOST_CHECK_EQUAL(dd_norm, path);
+    }
+    {
+        fs::path path;
+        argsManager.ForceSetArg("-datadir", dd_norm.string() + "/./");
+        GetDataDir(argsManager, /* net specific */ true, &path);
+        BOOST_CHECK_EQUAL(dd_norm, path);
+    }
+    {
+        fs::path path;
+        argsManager.ForceSetArg("-datadir", dd_norm.string() + "/.//");
+        GetDataDir(argsManager, /* net specific */ true, &path);
+        BOOST_CHECK_EQUAL(dd_norm, path);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(util_check)
