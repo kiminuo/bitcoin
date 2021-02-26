@@ -94,8 +94,6 @@ bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
-/** Tests only */
-void ClearDatadirCache();
 fs::path GetConfigFile(const std::string& confPath);
 #ifdef WIN32
 fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
@@ -269,7 +267,7 @@ public:
      *
      * @return Blocks path which is network specific.
      */
-    const fs::path& ArgsManager::GetBlocksDirPath()
+    const fs::path& GetBlocksDirPath();
 
     /**
      * Get data directory path.
@@ -279,7 +277,7 @@ public:
      */
     const fs::path &GetDataDirPath(bool fNetSpecific = true);
 
-    void ClearDatadirPathCache();
+    void ClearPathCache();
 
     /**
      * Return a vector of strings of the given argument
