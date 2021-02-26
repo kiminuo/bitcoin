@@ -36,6 +36,7 @@
 #include <vector>
 
 class UniValue;
+class ArgsManager;
 
 // Application startup time (used for uptime calculation)
 int64_t GetStartupTime();
@@ -200,6 +201,8 @@ protected:
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
     bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
+    fs::path datadirPathCached GUARDED_BY(cs_args);
+    fs::path datadirPathCachedNetSpecific GUARDED_BY(cs_args);
 
     [[nodiscard]] bool ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys = false);
 
@@ -262,6 +265,16 @@ public:
      * Get the command and command args (returns std::nullopt if no command provided)
      */
     std::optional<const Command> GetCommand() const;
+
+    /**
+     * Get data directory path.
+     *
+     * @param fnetSpecific Append network identifier to the path.
+     * @return Directory path.
+     */
+    const fs::path &GetDataDirPath(bool fNetSpecific = true);
+
+    void ClearDatadirPathCache();
 
     /**
      * Return a vector of strings of the given argument
@@ -389,7 +402,7 @@ public:
      * Get settings file path, or return false if read-write settings were
      * disabled with -nosettings.
      */
-    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false) const;
+    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false);
 
     /**
      * Read settings file. Push errors to vector, or log them if null.
@@ -399,7 +412,7 @@ public:
     /**
      * Write settings file. Push errors to vector, or log them if null.
      */
-    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr) const;
+    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr);
 
     /**
      * Access settings with lock held.
