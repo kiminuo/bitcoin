@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(stale_tip_peer_management)
 BOOST_AUTO_TEST_CASE(peer_discouragement)
 {
     const CChainParams& chainparams = Params();
-    auto banman = MakeUnique<BanMan>(GetDataDir() / "banlist.dat", nullptr, DEFAULT_MISBEHAVING_BANTIME);
+    auto banman = MakeUnique<BanMan>(m_args_manager.GetDataDirPath() / "banlist.dat", nullptr, DEFAULT_MISBEHAVING_BANTIME);
     auto connman = MakeUnique<CConnman>(0x1337, 0x1337);
     auto peerLogic = PeerManager::make(chainparams, *connman, banman.get(), *m_node.scheduler,
                                        *m_node.chainman, *m_node.mempool, false);
@@ -269,7 +269,7 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
 BOOST_AUTO_TEST_CASE(DoS_bantime)
 {
     const CChainParams& chainparams = Params();
-    auto banman = MakeUnique<BanMan>(GetDataDir() / "banlist.dat", nullptr, DEFAULT_MISBEHAVING_BANTIME);
+    auto banman = MakeUnique<BanMan>(m_args_manager.GetDataDirPath() / "banlist.dat", nullptr, DEFAULT_MISBEHAVING_BANTIME);
     auto connman = MakeUnique<CConnman>(0x1337, 0x1337);
     auto peerLogic = PeerManager::make(chainparams, *connman, banman.get(), *m_node.scheduler,
                                        *m_node.chainman, *m_node.mempool, false);
