@@ -195,6 +195,7 @@ protected:
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
     bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
+    fs::path blocksPathCachedNetSpecific GUARDED_BY(cs_args);
     fs::path datadirPathCached GUARDED_BY(cs_args);
     fs::path datadirPathCachedNetSpecific GUARDED_BY(cs_args);
 
@@ -259,6 +260,13 @@ public:
      * Get the command and command args (returns std::nullopt if no command provided)
      */
     std::optional<const Command> GetCommand() const;
+
+    /**
+     * Get blocks directory path
+     *
+     * @return Blocks path which is network specific
+     */
+    const fs::path& GetBlocksDirPath();
 
     /**
      * Get data directory path
