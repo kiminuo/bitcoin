@@ -211,12 +211,12 @@ QString ClientModel::formatClientStartupTime() const
 
 QString ClientModel::dataDir() const
 {
-    return GUIUtil::boostPathToQString(GetDataDir());
+    return GUIUtil::boostPathToQString(gArgs.GetDataDirPath());
 }
 
 QString ClientModel::blocksDir() const
 {
-    return GUIUtil::boostPathToQString(GetBlocksDir());
+    return GUIUtil::boostPathToQString(gArgs.GetBlocksDirPath());
 }
 
 void ClientModel::updateBanlist()

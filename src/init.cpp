@@ -649,7 +649,7 @@ static void CleanupBlockRevFiles()
     // Remove the rev files immediately and insert the blk file paths into an
     // ordered map keyed by block file index.
     LogPrintf("Removing unusable blk?????.dat and rev?????.dat files for -reindex with -prune\n");
-    fs::path blocksdir = GetBlocksDir();
+    fs::path blocksdir = gArgs.GetBlocksDirPath();
     for (fs::directory_iterator it(blocksdir); it != fs::directory_iterator(); it++) {
         if (fs::is_regular_file(*it) &&
             it->path().filename().string().length() == 12 &&
@@ -999,7 +999,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         InitWarning(warnings);
     }
 
-    if (!fs::is_directory(GetBlocksDir())) {
+    if (!fs::is_directory(gArgs.GetBlocksDirPath())) {
         return InitError(strprintf(_("Specified blocks directory \"%s\" does not exist."), args.GetArg("-blocksdir", "")));
     }
 
@@ -1214,7 +1214,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 static bool LockDataDirectory(bool probeOnly)
 {
     // Make sure only a single Bitcoin process is using the data directory.
-    fs::path datadir = GetDataDir();
+    fs::path datadir = gArgs.GetDataDirPath();
     if (!DirIsWritable(datadir)) {
         return InitError(strprintf(_("Cannot write to data directory '%s'; check permissions."), datadir.string()));
     }
@@ -1292,7 +1292,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     if (!LogInstance().m_log_timestamps)
         LogPrintf("Startup time: %s\n", FormatISO8601DateTime(GetTime()));
     LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
-    LogPrintf("Using data directory %s\n", GetDataDir().string());
+    LogPrintf("Using data directory %s\n", gArgs.GetDataDirPath().string());
 
     // Only log conf file usage message if conf file actually exists.
     fs::path config_file_path = GetConfigFile(args.GetArg("-conf", BITCOIN_CONF_FILENAME));
@@ -1395,7 +1395,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     const bool ignores_incoming_txs{args.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY)};
 
     assert(!node.banman);
-    node.banman = MakeUnique<BanMan>(GetDataDir() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
+    node.banman = MakeUnique<BanMan>(gArgs.GetDataDirPath() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
     assert(!node.connman);
     node.connman = MakeUnique<CConnman>(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max()), args.GetBoolArg("-networkactive", true));
 
@@ -1505,7 +1505,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
             asmap_path = DEFAULT_ASMAP_FILENAME;
         }
         if (!asmap_path.is_absolute()) {
-            asmap_path = GetDataDir() / asmap_path;
+            asmap_path = gArgs.GetDataDirPath() / asmap_path;
         }
         if (!fs::exists(asmap_path)) {
             InitError(strprintf(_("Could not find asmap file %s"), asmap_path));
@@ -1833,12 +1833,12 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     // ********************************************************* Step 11: import blocks
 
-    if (!CheckDiskSpace(GetDataDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetDataDir()));
+    if (!CheckDiskSpace(gArgs.GetDataDirPath())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), gArgs.GetDataDirPath()));
         return false;
     }
-    if (!CheckDiskSpace(GetBlocksDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetBlocksDir()));
+    if (!CheckDiskSpace(gArgs.GetBlocksDirPath())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), gArgs.GetBlocksDirPath()));
         return false;
     }
 

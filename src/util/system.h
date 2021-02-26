@@ -92,9 +92,6 @@ void ReleaseDirectoryLocks();
 
 bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
-// The blocks directory is always net specific.
-const fs::path &GetBlocksDir();
-const fs::path &GetDataDir(bool fNetSpecific = true);
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
 /** Tests only */
@@ -125,7 +122,7 @@ UniValue RunCommandParseJSON(const std::string& str_command, const std::string& 
  * the datadir if they are not absolute.
  *
  * @param path The path to be conditionally prefixed with datadir.
- * @param net_specific Forwarded to GetDataDir().
+ * @param net_specific Forwarded to gArgs.GetDataDirPath().
  * @return The normalized path.
  */
 fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific = true);
@@ -201,6 +198,7 @@ protected:
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
     bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
+    fs::path blocksPathCachedNetSpecific GUARDED_BY(cs_args);
     fs::path datadirPathCached GUARDED_BY(cs_args);
     fs::path datadirPathCachedNetSpecific GUARDED_BY(cs_args);
 
@@ -265,6 +263,13 @@ public:
      * Get the command and command args (returns std::nullopt if no command provided)
      */
     std::optional<const Command> GetCommand() const;
+
+    /**
+     * Get blocks directory path.
+     *
+     * @return Blocks path which is network specific.
+     */
+    const fs::path& ArgsManager::GetBlocksDirPath()
 
     /**
      * Get data directory path.
