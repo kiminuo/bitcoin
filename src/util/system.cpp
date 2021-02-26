@@ -445,7 +445,7 @@ const fs::path& ArgsManager::GetDataDirPath(bool fNetSpecific)
     return path;
 }
 
-void ArgsManager::ClearDatadirPathCache()
+void ArgsManager::ClearPathCache()
 {
     LOCK(cs_args);
 
@@ -808,11 +808,6 @@ bool CheckDataDirOption()
     return datadir.empty() || fs::is_directory(fs::system_complete(datadir));
 }
 
-void ClearDatadirCache()
-{
-    gArgs.ClearDatadirPathCache();    
-}
-
 fs::path GetConfigFile(const std::string& confPath)
 {
     return AbsPathForConfigVal(fs::path(confPath), false);
@@ -971,7 +966,7 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
     }
 
     // If datadir is changed in .conf file:
-    ClearDatadirCache();
+    gArgs.ClearPathCache();
     if (!CheckDataDirOption()) {
         error = strprintf("specified data directory \"%s\" does not exist.", GetArg("-datadir", ""));
         return false;
