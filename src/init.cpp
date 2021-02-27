@@ -1406,7 +1406,7 @@ bool AppInitMain(const std::any& context, NodeContext& node, interfaces::BlockAn
     assert(!node.addrman);
     node.addrman = std::make_unique<CAddrMan>();
     assert(!node.banman);
-    node.banman = std::make_unique<BanMan>(GetDataDir() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
+    node.banman = std::make_unique<BanMan>(gArgs.GetDataDirPath() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
     assert(!node.connman);
     node.connman = std::make_unique<CConnman>(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max()), *node.addrman, args.GetBoolArg("-networkactive", true));
 
@@ -1516,7 +1516,7 @@ bool AppInitMain(const std::any& context, NodeContext& node, interfaces::BlockAn
             asmap_path = DEFAULT_ASMAP_FILENAME;
         }
         if (!asmap_path.is_absolute()) {
-            asmap_path = GetDataDir() / asmap_path;
+            asmap_path = gArgs.GetDataDirPath() / asmap_path;
         }
         if (!fs::exists(asmap_path)) {
             InitError(strprintf(_("Could not find asmap file %s"), asmap_path));
@@ -1844,8 +1844,8 @@ bool AppInitMain(const std::any& context, NodeContext& node, interfaces::BlockAn
 
     // ********************************************************* Step 11: import blocks
 
-    if (!CheckDiskSpace(GetDataDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetDataDir()));
+    if (!CheckDiskSpace(gArgs.GetDataDirPath())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), gArgs.GetDataDirPath()));
         return false;
     }
     if (!CheckDiskSpace(GetBlocksDir())) {
