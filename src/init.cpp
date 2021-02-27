@@ -1223,7 +1223,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
 static bool LockDataDirectory(bool probeOnly)
 {
     // Make sure only a single Bitcoin process is using the data directory.
-    fs::path datadir = GetDataDir();
+    fs::path datadir = gArgs.GetDataDirPath();
     if (!DirIsWritable(datadir)) {
         return InitError(strprintf(_("Cannot write to data directory '%s'; check permissions."), datadir.string()));
     }
@@ -1301,7 +1301,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!LogInstance().m_log_timestamps)
         LogPrintf("Startup time: %s\n", FormatISO8601DateTime(GetTime()));
     LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
-    LogPrintf("Using data directory %s\n", GetDataDir().string());
+    LogPrintf("Using data directory %s\n", gArgs.GetDataDirPath().string());
 
     // Only log conf file usage message if conf file actually exists.
     fs::path config_file_path = GetConfigFile(args.GetArg("-conf", BITCOIN_CONF_FILENAME));
@@ -1406,7 +1406,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!node.addrman);
     node.addrman = std::make_unique<CAddrMan>();
     assert(!node.banman);
-    node.banman = std::make_unique<BanMan>(GetDataDir() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
+    node.banman = std::make_unique<BanMan>(gArgs.GetDataDirPath() / "banlist.dat", &uiInterface, args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME));
     assert(!node.connman);
     node.connman = std::make_unique<CConnman>(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max()), *node.addrman, args.GetBoolArg("-networkactive", true));
 
@@ -1516,7 +1516,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             asmap_path = DEFAULT_ASMAP_FILENAME;
         }
         if (!asmap_path.is_absolute()) {
-            asmap_path = GetDataDir() / asmap_path;
+            asmap_path = gArgs.GetDataDirPath() / asmap_path;
         }
         if (!fs::exists(asmap_path)) {
             InitError(strprintf(_("Could not find asmap file %s"), asmap_path));
@@ -1844,8 +1844,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     // ********************************************************* Step 11: import blocks
 
-    if (!CheckDiskSpace(GetDataDir())) {
-        InitError(strprintf(_("Error: Disk space is low for %s"), GetDataDir()));
+    if (!CheckDiskSpace(gArgs.GetDataDirPath())) {
+        InitError(strprintf(_("Error: Disk space is low for %s"), gArgs.GetDataDirPath()));
         return false;
     }
     if (!CheckDiskSpace(GetBlocksDir())) {

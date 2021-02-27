@@ -778,6 +778,11 @@ fs::path GetDefaultDataDir()
 static fs::path g_blocks_path_cache_net_specific;
 static RecursiveMutex csPathCached;
 
+const fs::path &GetDataDir(bool fNetSpecific)
+{
+    return gArgs.GetDataDirPath(fNetSpecific);
+}
+
 const fs::path &GetBlocksDir()
 {
     LOCK(csPathCached);
@@ -802,11 +807,6 @@ const fs::path &GetBlocksDir()
     fs::create_directories(path);
     path = StripRedundantLastElementsOfPath(path);
     return path;
-}
-
-const fs::path &GetDataDir(bool fNetSpecific)
-{
-    return gArgs.GetDataDirPath(fNetSpecific);
 }
 
 bool CheckDataDirOption()
@@ -1369,7 +1369,7 @@ fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific)
     if (path.is_absolute()) {
         return path;
     }
-    return fsbridge::AbsPathJoin(GetDataDir(net_specific), path);
+    return fsbridge::AbsPathJoin(gArgs.GetDataDirPath(net_specific), path);
 }
 
 void ScheduleBatchPriority()
