@@ -1369,7 +1369,7 @@ fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific)
     if (path.is_absolute()) {
         return path;
     }
-    return fsbridge::AbsPathJoin(GetDataDir(net_specific), path);
+    return fsbridge::AbsPathJoin(gArgs.GetDataDirPath(net_specific), path);
 }
 
 void ScheduleBatchPriority()
