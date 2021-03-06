@@ -30,6 +30,7 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <undo.h>
+#include <util/moneystr.h>
 #include <util/ref.h>
 #include <util/strencodings.h>
 #include <util/system.h>
@@ -1486,7 +1487,7 @@ static RPCHelpMan getchaintips()
     };
 }
 
-UniValue MempoolInfoToJSON(const CTxMemPool& pool)
+UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<MempoolHistogramFeeLimits> feeLimits)
 {
     // Make sure this call is atomic in the pool.
     LOCK(pool.cs);
@@ -1501,6 +1502,68 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool)
     ret.pushKV("mempoolminfee", ValueFromAmount(std::max(pool.GetMinFee(maxmempool), ::minRelayTxFee).GetFeePerK()));
     ret.pushKV("minrelaytxfee", ValueFromAmount(::minRelayTxFee.GetFeePerK()));
     ret.pushKV("unbroadcastcount", uint64_t{pool.GetUnbroadcastTxs().size()});
+
+    if (feeLimits) {
+        const MempoolHistogramFeeLimits& limits = feeLimits.value();
+
+        /* Keep histogram per...
+         * ... cumulated tx sizes
+         * ... txns (count)
+         * ... cumulated fees */
+        std::vector<uint64_t> sizes(limits.size(), 0);
+        std::vector<uint64_t> count(limits.size(), 0);
+        std::vector<uint64_t> fees(limits.size(), 0);
+
+        for (const CTxMemPoolEntry& e : pool.mapTx) {
+            const int size = (int)e.GetTxSize();
+            CAmount fee = e.GetFee();
+            uint64_t asize = e.GetSizeWithAncestors();
+            CAmount afees = e.GetModFeesWithAncestors();
+            uint64_t dsize = e.GetSizeWithDescendants();
+            CAmount dfees = e.GetModFeesWithDescendants();
+
+            CAmount fpb = fee / size; // fee per byte
+            CAmount afpb = afees / asize; // fee per byte including ancestors
+            CAmount dfpb = dfees / dsize; // fee per byte including descendants
+            CAmount tfpb = (afees + dfees - fee) / (asize + dsize - size);
+            CAmount feeperbyte = std::max(std::min(dfpb, tfpb), std::min(fpb, afpb));
+
+            // Distribute feerates into feelimits
+            for (int i = limits.size() - 1; i >= 0; --i) {
+                if (feeperbyte >= limits[i].second) {
+                    sizes[i] += size;
+                    ++count[i];
+                    fees[i] += fee;
+                    break;
+                }
+            }
+        }
+
+        CAmount total_fees = 0; // Track total amount of available fees in mempool
+        UniValue ranges(UniValue::VOBJ);
+        for (size_t i = 0; i < limits.size(); ++i) {
+            UniValue info_sub(UniValue::VOBJ);
+            info_sub.pushKV("sizes", sizes[i]);
+            info_sub.pushKV("count", count[i]);
+            info_sub.pushKV("fees", fees[i]);
+            info_sub.pushKV("from_feerate", limits[i].first);
+
+            if (i == limits.size() - 1) {
+                info_sub.pushKV("to_feerate", "Max"); // TODO.
+            } else {
+                info_sub.pushKV("to_feerate", limits[i + 1].first);
+            }
+
+            total_fees += fees[i];
+            ranges.pushKV(limits[i].first, info_sub);
+        }
+
+        UniValue info(UniValue::VOBJ);
+        info.pushKV("ranges", ranges);
+        info.pushKV("total_fees", total_fees);
+        ret.pushKV("fee_histogram", info);
+    }
+
     return ret;
 }
 
@@ -1508,7 +1571,13 @@ static RPCHelpMan getmempoolinfo()
 {
     return RPCHelpMan{"getmempoolinfo",
                 "\nReturns details on the active state of the TX memory pool.\n",
-                {},
+                {
+                    {"fee_histogram", RPCArg::Type::ARR, RPCArg::Optional::OMITTED_NAMED_ARG, "Fee amounts",
+                        {
+                            {"limit", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "A fee amount"},
+                        },
+                    },
+                },
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
                     {
@@ -1520,15 +1589,45 @@ static RPCHelpMan getmempoolinfo()
                         {RPCResult::Type::NUM, "maxmempool", "Maximum memory usage for the mempool"},
                         {RPCResult::Type::STR_AMOUNT, "mempoolminfee", "Minimum fee rate in " + CURRENCY_UNIT + "/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee"},
                         {RPCResult::Type::STR_AMOUNT, "minrelaytxfee", "Current minimum relay fee for transactions"},
-                        {RPCResult::Type::NUM, "unbroadcastcount", "Current number of transactions that haven't passed initial broadcast yet"}
+                        {RPCResult::Type::NUM, "unbroadcastcount", "Current number of transactions that haven't passed initial broadcast yet"},
+                        {RPCResult::Type::OBJ, "fee_histogram", "",
+                            {
+                                {RPCResult::Type::OBJ, "<feerate-group>", "Object per feerate group",
+                                {
+                                    {RPCResult::Type::NUM, "sizes", "Cumulated size of all transactions in feerate group"},
+                                    {RPCResult::Type::NUM, "count", "Amount of transactions in feerate group"},
+                                    {RPCResult::Type::NUM, "fees", "Cumulated fee of all transactions in feerate group"},
+                                    {RPCResult::Type::NUM, "from_feerate", "Group contains transaction with feerates equal or greater than this value"},
+                                    {RPCResult::Type::NUM, "to_feerate", "Group contains transaction with feerates less than than this value"},
+                                }},
+                                {RPCResult::Type::NUM, "total_fees", "Total available fees in mempool"},
+                            }},
                     }},
                 RPCExamples{
-                    HelpExampleCli("getmempoolinfo", "")
-            + HelpExampleRpc("getmempoolinfo", "")
+                    HelpExampleCli("getmempoolinfo", "") +
+                    HelpExampleCli("getmempoolinfo", R"(["0.00000001","0.00000010","0.00000100","0.00000200","0.00000400","0.00000800"])") +
+                    HelpExampleRpc("getmempoolinfo", "") +
+                    HelpExampleRpc("getmempoolinfo", R"(["0.00000001","0.00000010","0.00000100","0.00000200","0.00000400","0.00000800"])")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    return MempoolInfoToJSON(EnsureMemPool(request.context));
+    MempoolHistogramFeeLimits feelimits;
+    std::optional<MempoolHistogramFeeLimits> feelimits_opt = std::nullopt;
+
+    if (!request.params[0].isNull()) {
+        const UniValue feelimits_univalue = request.params[0].get_array();
+        for (unsigned int i = 0; i < feelimits_univalue.size(); ++i) {
+            const std::string strAmount = feelimits_univalue[i].get_str();
+            CAmount amount;
+            if (!ParseMoney(strAmount, amount)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount.");
+            }
+            feelimits.push_back(std::make_pair<>(strAmount, amount));
+        }
+        feelimits_opt = std::optional<MempoolHistogramFeeLimits>(feelimits);
+    }
+
+    return MempoolInfoToJSON(EnsureMemPool(request.context), feelimits_opt);
 },
     };
 }
