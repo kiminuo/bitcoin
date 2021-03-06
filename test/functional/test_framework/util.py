@@ -55,6 +55,11 @@ def assert_greater_than(thing1, thing2):
         raise AssertionError("%s <= %s" % (str(thing1), str(thing2)))
 
 
+def assert_no_key(k, d):
+    if k in d:
+        raise AssertionError("%s in %s" % (str(k), str(d)))
+
+
 def assert_greater_than_or_equal(thing1, thing2):
     if thing1 < thing2:
         raise AssertionError("%s < %s" % (str(thing1), str(thing2)))
