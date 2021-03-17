@@ -331,24 +331,33 @@ static bool rest_chaininfo(const util::Ref& context, HTTPRequest* req, const std
 
 static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const std::string& strURIPart, bool fee_histogram)
 {
+    std::cout << "RRR: #1\n";
     if (!CheckWarmup(req))
         return false;
+    std::cout << "RRR: #2\n";
     const CTxMemPool* mempool = GetMemPool(context, req);
     if (!mempool) return false;
     std::string param;
     const RetFormat rf = ParseDataFormat(param, strURIPart);
+    std::cout << "RRR: #3\n";
 
     switch (rf) {
     case RetFormat::JSON: {
-        static const std::vector<CAmount> limits{1, 2, 3, 4, 5, 6, 7, 8, 10,
-            12, 14, 17, 20, 25, 30, 40, 50, 60, 70, 80, 100,
-            120, 140, 170, 200, 250, 300, 400, 500, 600, 700, 800, 1000,
-            1200, 1400, 1700, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000, 10000};
+        std::vector<std::string> limits;
+        std::cout << "RRR: #3.1: param: " << param << "; strURIPart=" << strURIPart << "\n";
+        boost::split(limits, param, boost::is_any_of("-"));
 
-        std::optional<std::vector<CAmount>> feeLimits = fee_histogram ? std::optional<std::vector<CAmount>>(limits) : std::nullopt;
+        std::cout << "RRR: #4: limits.size(): " << limits.size() << "\n";
+        // if (limits.size() != 2)
+        //    return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
 
+        std::cout << "RRR: #5\n";
+        std::optional<std::vector<std::string>> feeLimits = fee_histogram ? std::optional<std::vector<std::string>>(limits) : std::nullopt;
+
+        std::cout << "RRR: #6\n";
         UniValue mempoolInfoObject = MempoolInfoToJSON(*mempool, feeLimits);
 
+        std::cout << "RRR: #7\n";
         std::string strJSON = mempoolInfoObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
         req->WriteReply(HTTP_OK, strJSON);
@@ -365,6 +374,7 @@ static bool rest_mempool_info_basic(const util::Ref& context, HTTPRequest* req, 
     return rest_mempool_info(context, req, strURIPart, false);
 }
 
+// /mempool/info/with_fee_histogram/1-300-500.json
 static bool rest_mempool_info_with_fee_histogram(const util::Ref& context, HTTPRequest* req, const std::string& strURIPart)
 {
     return rest_mempool_info(context, req, strURIPart, true);
@@ -692,7 +702,7 @@ static const struct {
       {"/rest/block/notxdetails/", rest_block_notxdetails},
       {"/rest/block/", rest_block_extended},
       {"/rest/chaininfo", rest_chaininfo},
-      {"/rest/mempool/info/with_fee_histogram", rest_mempool_info_with_fee_histogram},
+      {"/rest/mempool/info/with_fee_histogram/", rest_mempool_info_with_fee_histogram},
       {"/rest/mempool/info", rest_mempool_info_basic},
       {"/rest/mempool/contents", rest_mempool_contents},
       {"/rest/headers/", rest_headers},

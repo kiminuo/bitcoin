@@ -33,7 +33,6 @@
 #include <util/moneystr.h>
 #include <util/ref.h>
 #include <util/strencodings.h>
-#include <util/string.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -1488,8 +1487,9 @@ static RPCHelpMan getchaintips()
     };
 }
 
-UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vector<CAmount>> feeLimits)
+UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vector<std::string>> feeLimits)
 {
+    // ZZZ
     // Make sure this call is atomic in the pool.
     LOCK(pool.cs);
     UniValue ret(UniValue::VOBJ);
@@ -1505,15 +1505,26 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
     ret.pushKV("unbroadcastcount", uint64_t{pool.GetUnbroadcastTxs().size()});
 
     if (feeLimits) {
-        const std::vector<CAmount> limits = feeLimits.value();
+        const std::vector<std::string>& strLimits = feeLimits.value();
+        std::vector<CAmount> numLimits;
+
+        for (const std::string& strAmount : strLimits) {
+            std::cout << "XXX: #1: strAmount:" << strAmount << "\n";
+            CAmount amount;
+            if (!ParseMoney(strAmount, amount)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Value is not amount.");
+            }
+
+            numLimits.push_back(amount);
+        }
 
         /* Keep histogram per...
          * ... cumulated tx sizes
          * ... txns (count)
          * ... cumulated fees */
-        std::vector<uint64_t> sizes(limits.size(), 0);
-        std::vector<uint64_t> count(limits.size(), 0);
-        std::vector<uint64_t> fees(limits.size(), 0);
+        std::vector<uint64_t> sizes(numLimits.size(), 0);
+        std::vector<uint64_t> count(numLimits.size(), 0);
+        std::vector<uint64_t> fees(numLimits.size(), 0);
 
         for (const CTxMemPoolEntry& e : pool.mapTx) {
             int size = (int)e.GetTxSize();
@@ -1530,8 +1541,8 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
             CAmount feeperbyte = std::max(std::min(dfpb, tfpb), std::min(fpb, afpb));
 
             // Distribute feerates into feelimits
-            for (int i = limits.size() - 1; i >= 0; i--) {
-                if (feeperbyte >= limits[i]) {
+            for (int i = numLimits.size() - 1; i >= 0; i--) {
+                if (feeperbyte >= numLimits[i]) {
                     sizes[i] += size;
                     count[i]++;
                     fees[i] += fee;
@@ -1542,15 +1553,21 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
 
         CAmount total_fees = 0; // Track total amount of available fees in mempool
         UniValue ranges(UniValue::VOBJ);
-        for (size_t i = 0; i < limits.size(); i++) {
+        for (size_t i = 0; i < strLimits.size(); i++) {
             UniValue info_sub(UniValue::VOBJ);
             info_sub.pushKV("sizes", sizes[i]);
             info_sub.pushKV("count", count[i]);
             info_sub.pushKV("fees", fees[i]);
-            info_sub.pushKV("from_feerate", limits[i]);
-            info_sub.pushKV("to_feerate", i == limits.size() - 1 ? std::numeric_limits<int64_t>::max() : limits[i + 1]);
+            info_sub.pushKV("from_feerate", strLimits[i]);
+
+            if (i == strLimits.size() - 1) {
+                info_sub.pushKV("to_feerate", "Max"); // TODO.
+            } else {
+                info_sub.pushKV("to_feerate", strLimits[i + 1]);
+            }
+
             total_fees += fees[i];
-            ranges.pushKV(ToString(limits[i]), info_sub);
+            ranges.pushKV(strLimits[i], info_sub);
         }
 
         UniValue info(UniValue::VOBJ);
@@ -1601,37 +1618,20 @@ static RPCHelpMan getmempoolinfo()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    // XXX
-    std::cout << "#1\n";
-    std::optional<std::vector<CAmount>> feeLimits = std::nullopt;
+    // ZZZ
+    std::vector<std::string> feelimits;
+    std::optional<std::vector<std::string>> feelimits_opt = std::nullopt;
 
-    std::cout << "#2\n";
-    if (!request.params[0].isNull()) { // TODO: is str? No.
-        std::cout << "#3\n";
+    if (!request.params[0].isNull()) {
         const UniValue feelimits_univalue = request.params[0].get_array();
-
-        std::cout << "#4\n";
-        if (feelimits_univalue.size() == 0) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "No fee limits defined");
+        for (unsigned int i = 0; i < feelimits_univalue.size(); i++) {
+            const std::string feeLimit = feelimits_univalue[i].get_str();
+            feelimits.push_back(feeLimit);
         }
-
-        std::cout << "#5\n";
-        std::vector<CAmount> amounts;
-        for (const UniValue& fee_univalue : feelimits_univalue.getValues()) {
-            CAmount value;
-            if (!ParseMoney(fee_univalue.get_str(), value)) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Value is not amount.");
-            }
-
-            amounts.push_back(value);
-        }
-
-        std::cout << "#6\n";
-        feeLimits = std::optional<std::vector<CAmount>>(amounts);
+        feelimits_opt = std::optional<std::vector<std::string>>(feelimits);
     }
 
-    std::cout << "#7\n";
-    return MempoolInfoToJSON(EnsureMemPool(request.context), feeLimits);
+    return MempoolInfoToJSON(EnsureMemPool(request.context), feelimits_opt);
 },
     };
 }
