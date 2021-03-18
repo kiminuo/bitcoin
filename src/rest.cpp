@@ -18,6 +18,7 @@
 #include <sync.h>
 #include <txmempool.h>
 #include <util/check.h>
+#include <util/moneystr.h>
 #include <util/ref.h>
 #include <validation.h>
 #include <version.h>
@@ -343,19 +344,33 @@ static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const 
 
     switch (rf) {
     case RetFormat::JSON: {
-        std::vector<std::string> limits;
-        std::cout << "RRR: #3.1: param: " << param << "; strURIPart=" << strURIPart << "\n";
-        boost::split(limits, param, boost::is_any_of("-"));
-
-        std::cout << "RRR: #4: limits.size(): " << limits.size() << "\n";
-        // if (limits.size() != 2)
-        //    return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
 
         std::cout << "RRR: #5\n";
-        std::optional<std::vector<std::string>> feeLimits = fee_histogram ? std::optional<std::vector<std::string>>(limits) : std::nullopt;
+        MempoolHistogramFeeLimits feelimits;
+        std::optional<MempoolHistogramFeeLimits> feelimits_opt = std::nullopt;
+
+        if (fee_histogram) {
+            std::vector<std::string> limits;
+            std::cout << "RRR: #3.1: param: " << param << "; strURIPart=" << strURIPart << "\n";
+            boost::split(limits, param, boost::is_any_of("-"));
+
+            std::cout << "RRR: #4: limits.size(): " << limits.size() << "\n";
+            // if (limits.size() != 2)
+            //    return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
+
+            for (const std::string strAmount : limits) {
+                std::cout << "RRR: #5: strAmount:" << strAmount << "\n";
+                CAmount amount;
+                if (!ParseMoney(strAmount, amount)) {
+                    return RESTERR(req, HTTP_BAD_REQUEST, "Invalid amount");
+                }
+                feelimits.push_back(std::make_pair<>(strAmount, amount));
+            }
+            feelimits_opt = std::optional<MempoolHistogramFeeLimits>(feelimits);
+        }
 
         std::cout << "RRR: #6\n";
-        UniValue mempoolInfoObject = MempoolInfoToJSON(*mempool, feeLimits);
+        UniValue mempoolInfoObject = MempoolInfoToJSON(*mempool, feelimits_opt);
 
         std::cout << "RRR: #7\n";
         std::string strJSON = mempoolInfoObject.write() + "\n";

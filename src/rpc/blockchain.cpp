@@ -1487,7 +1487,7 @@ static RPCHelpMan getchaintips()
     };
 }
 
-UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vector<std::string>> feeLimits)
+UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<MempoolHistogramFeeLimits> feeLimits)
 {
     // ZZZ
     // Make sure this call is atomic in the pool.
@@ -1505,26 +1505,15 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
     ret.pushKV("unbroadcastcount", uint64_t{pool.GetUnbroadcastTxs().size()});
 
     if (feeLimits) {
-        const std::vector<std::string>& strLimits = feeLimits.value();
-        std::vector<CAmount> numLimits;
-
-        for (const std::string& strAmount : strLimits) {
-            std::cout << "XXX: #1: strAmount:" << strAmount << "\n";
-            CAmount amount;
-            if (!ParseMoney(strAmount, amount)) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Value is not amount.");
-            }
-
-            numLimits.push_back(amount);
-        }
+        const MempoolHistogramFeeLimits& limits = feeLimits.value();
 
         /* Keep histogram per...
          * ... cumulated tx sizes
          * ... txns (count)
          * ... cumulated fees */
-        std::vector<uint64_t> sizes(numLimits.size(), 0);
-        std::vector<uint64_t> count(numLimits.size(), 0);
-        std::vector<uint64_t> fees(numLimits.size(), 0);
+        std::vector<uint64_t> sizes(limits.size(), 0);
+        std::vector<uint64_t> count(limits.size(), 0);
+        std::vector<uint64_t> fees(limits.size(), 0);
 
         for (const CTxMemPoolEntry& e : pool.mapTx) {
             int size = (int)e.GetTxSize();
@@ -1541,8 +1530,8 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
             CAmount feeperbyte = std::max(std::min(dfpb, tfpb), std::min(fpb, afpb));
 
             // Distribute feerates into feelimits
-            for (int i = numLimits.size() - 1; i >= 0; i--) {
-                if (feeperbyte >= numLimits[i]) {
+            for (int i = limits.size() - 1; i >= 0; i--) {
+                if (feeperbyte >= limits[i].second) {
                     sizes[i] += size;
                     count[i]++;
                     fees[i] += fee;
@@ -1553,21 +1542,21 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<std::vect
 
         CAmount total_fees = 0; // Track total amount of available fees in mempool
         UniValue ranges(UniValue::VOBJ);
-        for (size_t i = 0; i < strLimits.size(); i++) {
+        for (size_t i = 0; i < limits.size(); i++) {
             UniValue info_sub(UniValue::VOBJ);
             info_sub.pushKV("sizes", sizes[i]);
             info_sub.pushKV("count", count[i]);
             info_sub.pushKV("fees", fees[i]);
-            info_sub.pushKV("from_feerate", strLimits[i]);
+            info_sub.pushKV("from_feerate", limits[i].first);
 
-            if (i == strLimits.size() - 1) {
+            if (i == limits.size() - 1) {
                 info_sub.pushKV("to_feerate", "Max"); // TODO.
             } else {
-                info_sub.pushKV("to_feerate", strLimits[i + 1]);
+                info_sub.pushKV("to_feerate", limits[i + 1].first);
             }
 
             total_fees += fees[i];
-            ranges.pushKV(strLimits[i], info_sub);
+            ranges.pushKV(limits[i].first, info_sub);
         }
 
         UniValue info(UniValue::VOBJ);
@@ -1619,16 +1608,21 @@ static RPCHelpMan getmempoolinfo()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     // ZZZ
-    std::vector<std::string> feelimits;
-    std::optional<std::vector<std::string>> feelimits_opt = std::nullopt;
+    MempoolHistogramFeeLimits feelimits;
+    std::optional<MempoolHistogramFeeLimits> feelimits_opt = std::nullopt;
 
     if (!request.params[0].isNull()) {
         const UniValue feelimits_univalue = request.params[0].get_array();
         for (unsigned int i = 0; i < feelimits_univalue.size(); i++) {
-            const std::string feeLimit = feelimits_univalue[i].get_str();
-            feelimits.push_back(feeLimit);
+            const std::string strAmount = feelimits_univalue[i].get_str();
+            std::cout << "RRR: #1: strAmount:" << strAmount << "\n";
+            CAmount amount;
+            if (!ParseMoney(strAmount, amount)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount.");
+            }
+            feelimits.push_back(std::make_pair<>(strAmount, amount));
         }
-        feelimits_opt = std::optional<std::vector<std::string>>(feelimits);
+        feelimits_opt = std::optional<MempoolHistogramFeeLimits>(feelimits);
     }
 
     return MempoolInfoToJSON(EnsureMemPool(request.context), feelimits_opt);
