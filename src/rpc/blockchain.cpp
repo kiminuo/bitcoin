@@ -1489,7 +1489,6 @@ static RPCHelpMan getchaintips()
 
 UniValue MempoolInfoToJSON(const CTxMemPool& pool, const std::optional<MempoolHistogramFeeLimits> feeLimits)
 {
-    // ZZZ
     // Make sure this call is atomic in the pool.
     LOCK(pool.cs);
     UniValue ret(UniValue::VOBJ);
@@ -1607,7 +1606,6 @@ static RPCHelpMan getmempoolinfo()
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
-    // ZZZ
     MempoolHistogramFeeLimits feelimits;
     std::optional<MempoolHistogramFeeLimits> feelimits_opt = std::nullopt;
 
@@ -1615,7 +1613,6 @@ static RPCHelpMan getmempoolinfo()
         const UniValue feelimits_univalue = request.params[0].get_array();
         for (unsigned int i = 0; i < feelimits_univalue.size(); i++) {
             const std::string strAmount = feelimits_univalue[i].get_str();
-            std::cout << "RRR: #1: strAmount:" << strAmount << "\n";
             CAmount amount;
             if (!ParseMoney(strAmount, amount)) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount.");

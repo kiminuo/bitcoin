@@ -359,7 +359,6 @@ static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const 
             //    return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
 
             for (const std::string strAmount : limits) {
-                std::cout << "RRR: #5: strAmount:" << strAmount << "\n";
                 CAmount amount;
                 if (!ParseMoney(strAmount, amount)) {
                     return RESTERR(req, HTTP_BAD_REQUEST, "Invalid amount");
@@ -369,10 +368,8 @@ static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const 
             feelimits_opt = std::optional<MempoolHistogramFeeLimits>(feelimits);
         }
 
-        std::cout << "RRR: #6\n";
         UniValue mempoolInfoObject = MempoolInfoToJSON(*mempool, feelimits_opt);
 
-        std::cout << "RRR: #7\n";
         std::string strJSON = mempoolInfoObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
         req->WriteReply(HTTP_OK, strJSON);
