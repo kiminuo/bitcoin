@@ -332,7 +332,7 @@ static bool rest_chaininfo(const util::Ref& context, HTTPRequest* req, const std
 
 static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const std::string& strURIPart, bool fee_histogram)
 {
-    std::cout << "RRR: #1\n";
+    std::cout << "RRR: #1-2\n";
     if (!CheckWarmup(req))
         return false;
     std::cout << "RRR: #2\n";
@@ -344,19 +344,17 @@ static bool rest_mempool_info(const util::Ref& context, HTTPRequest* req, const 
 
     switch (rf) {
     case RetFormat::JSON: {
-
-        std::cout << "RRR: #5\n";
         MempoolHistogramFeeLimits feelimits;
         std::optional<MempoolHistogramFeeLimits> feelimits_opt = std::nullopt;
 
         if (fee_histogram) {
             std::vector<std::string> limits;
-            std::cout << "RRR: #3.1: param: " << param << "; strURIPart=" << strURIPart << "\n";
-            boost::split(limits, param, boost::is_any_of("-"));
+            std::string strUriParams = param.size() > 0 ? param.substr(1) : param;
+            std::cout << "RRR: #3.1: param: " << param << "; strUriParams=" << strUriParams << "\n";
+            boost::split(limits, strUriParams, boost::is_any_of("-"));
 
-            std::cout << "RRR: #4: limits.size(): " << limits.size() << "\n";
-            // if (limits.size() != 2)
-            //    return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
+            if (limits.size() == 0)
+                return RESTERR(req, HTTP_BAD_REQUEST, "Expected at least one fee limit");
 
             for (const std::string strAmount : limits) {
                 CAmount amount;
@@ -714,7 +712,7 @@ static const struct {
       {"/rest/block/notxdetails/", rest_block_notxdetails},
       {"/rest/block/", rest_block_extended},
       {"/rest/chaininfo", rest_chaininfo},
-      {"/rest/mempool/info/with_fee_histogram/", rest_mempool_info_with_fee_histogram},
+      {"/rest/mempool/info/with_fee_histogram", rest_mempool_info_with_fee_histogram},
       {"/rest/mempool/info", rest_mempool_info_basic},
       {"/rest/mempool/contents", rest_mempool_contents},
       {"/rest/headers/", rest_headers},
