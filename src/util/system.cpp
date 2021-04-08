@@ -388,6 +388,45 @@ std::optional<unsigned int> ArgsManager::GetArgFlags(const std::string& name) co
     return std::nullopt;
 }
 
+const fs::path& ArgsManager::GetDataDirPath(bool fNetSpecific)
+{
+    LOCK(cs_args);
+    fs::path &path = fNetSpecific ? m_cached_network_datadir_path : m_cached_datadir_path;
+
+    // Cache the path to avoid calling fs::create_directories on every call of
+    // this function
+    if (!path.empty()) return path;
+
+    std::string datadir = GetArg("-datadir", "");
+    if (!datadir.empty()) {
+        path = fs::system_complete(datadir);
+        if (!fs::is_directory(path)) {
+            path = "";
+            return path;
+        }
+    } else {
+        path = GetDefaultDataDir();
+    }
+    if (fNetSpecific)
+        path /= BaseParams().DataDir();
+
+    if (fs::create_directories(path)) {
+        // This is the first run, create wallets subdirectory too
+        fs::create_directories(path / "wallets");
+    }
+
+    path = StripRedundantLastElementsOfPath(path);
+    return path;
+}
+
+void ArgsManager::ClearDatadirPathCache()
+{
+    LOCK(cs_args);
+
+    m_cached_datadir_path = fs::path();
+    m_cached_network_datadir_path = fs::path();
+}
+
 std::optional<const ArgsManager::Command> ArgsManager::GetCommand() const
 {
     Command ret;
@@ -440,14 +479,14 @@ bool ArgsManager::InitSettings(std::string& error)
     return true;
 }
 
-bool ArgsManager::GetSettingsPath(fs::path* filepath, bool temp) const
+bool ArgsManager::GetSettingsPath(fs::path* filepath, bool temp)
 {
     if (IsArgNegated("-settings")) {
         return false;
     }
     if (filepath) {
         std::string settings = GetArg("-settings", BITCOIN_SETTINGS_FILENAME);
-        *filepath = fsbridge::AbsPathJoin(GetDataDir(/* net_specific= */ true), temp ? settings + ".tmp" : settings);
+        *filepath = fsbridge::AbsPathJoin(GetDataDirPath(/* net_specific= */ true), temp ? settings + ".tmp" : settings);
     }
     return true;
 }
@@ -488,7 +527,7 @@ bool ArgsManager::ReadSettingsFile(std::vector<std::string>* errors)
     return true;
 }
 
-bool ArgsManager::WriteSettingsFile(std::vector<std::string>* errors) const
+bool ArgsManager::WriteSettingsFile(std::vector<std::string>* errors)
 {
     fs::path path, path_tmp;
     if (!GetSettingsPath(&path, /* temp= */ false) || !GetSettingsPath(&path_tmp, /* temp= */ true)) {
@@ -737,8 +776,6 @@ fs::path GetDefaultDataDir()
 }
 
 static fs::path g_blocks_path_cache_net_specific;
-static fs::path pathCached;
-static fs::path pathCachedNetSpecific;
 static RecursiveMutex csPathCached;
 
 const fs::path &GetBlocksDir()
@@ -769,33 +806,7 @@ const fs::path &GetBlocksDir()
 
 const fs::path &GetDataDir(bool fNetSpecific)
 {
-    LOCK(csPathCached);
-    fs::path &path = fNetSpecific ? pathCachedNetSpecific : pathCached;
-
-    // Cache the path to avoid calling fs::create_directories on every call of
-    // this function
-    if (!path.empty()) return path;
-
-    std::string datadir = gArgs.GetArg("-datadir", "");
-    if (!datadir.empty()) {
-        path = fs::system_complete(datadir);
-        if (!fs::is_directory(path)) {
-            path = "";
-            return path;
-        }
-    } else {
-        path = GetDefaultDataDir();
-    }
-    if (fNetSpecific)
-        path /= BaseParams().DataDir();
-
-    if (fs::create_directories(path)) {
-        // This is the first run, create wallets subdirectory too
-        fs::create_directories(path / "wallets");
-    }
-
-    path = StripRedundantLastElementsOfPath(path);
-    return path;
+    return gArgs.GetDataDirPath(fNetSpecific);
 }
 
 bool CheckDataDirOption()
@@ -806,10 +817,7 @@ bool CheckDataDirOption()
 
 void ClearDatadirCache()
 {
-    LOCK(csPathCached);
-
-    pathCached = fs::path();
-    pathCachedNetSpecific = fs::path();
+    gArgs.ClearDatadirPathCache();
     g_blocks_path_cache_net_specific = fs::path();
 }
 

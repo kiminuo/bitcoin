@@ -200,6 +200,8 @@ protected:
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
     bool m_accept_any_command GUARDED_BY(cs_args){true};
     std::list<SectionInfo> m_config_sections GUARDED_BY(cs_args);
+    fs::path m_cached_datadir_path GUARDED_BY(cs_args);
+    fs::path m_cached_network_datadir_path GUARDED_BY(cs_args);
 
     [[nodiscard]] bool ReadConfigStream(std::istream& stream, const std::string& filepath, std::string& error, bool ignore_invalid_keys = false);
 
@@ -262,6 +264,20 @@ public:
      * Get the command and command args (returns std::nullopt if no command provided)
      */
     std::optional<const Command> GetCommand() const;
+
+    /**
+     * Get data directory path
+     *
+     * @param fNetSpecific Append network identifier to the returned path
+     * @return Absolute path on success, otherwise an empty path when a non-directory path would be returned
+     * @post Returned directory path is created unless it is empty
+     */
+    const fs::path &GetDataDirPath(bool fNetSpecific = true);
+
+    /**
+     * For testing
+     */
+    void ClearDatadirPathCache();
 
     /**
      * Return a vector of strings of the given argument
@@ -389,7 +405,7 @@ public:
      * Get settings file path, or return false if read-write settings were
      * disabled with -nosettings.
      */
-    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false) const;
+    bool GetSettingsPath(fs::path* filepath = nullptr, bool temp = false);
 
     /**
      * Read settings file. Push errors to vector, or log them if null.
@@ -399,7 +415,7 @@ public:
     /**
      * Write settings file. Push errors to vector, or log them if null.
      */
-    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr) const;
+    bool WriteSettingsFile(std::vector<std::string>* errors = nullptr);
 
     /**
      * Access settings with lock held.
