@@ -3,11 +3,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <amount.h>
 #include <util/moneystr.h>
 
 #include <tinyformat.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+
+#include <optional>
 
 std::string FormatMoney(const CAmount n)
 {
@@ -79,4 +82,48 @@ bool ParseMoney(const std::string& money_string, CAmount& nRet)
 
     nRet = nValue;
     return true;
+}
+
+std::optional<CAmount> ParseMoneyNew(const std::string& money_string)
+{
+    if (!ValidAsCString(money_string)) {
+        return std::nullopt;
+    }
+    const std::string str = TrimString(money_string);
+    if (str.empty()) {
+        return std::nullopt;
+    }
+
+    std::string strWhole;
+    int64_t nUnits = 0;
+    const char* p = str.c_str();
+    for (; *p; p++)
+    {
+        if (*p == '.')
+        {
+            p++;
+            int64_t nMult = COIN / 10;
+            while (IsDigit(*p) && (nMult > 0))
+            {
+                nUnits += nMult * (*p++ - '0');
+                nMult /= 10;
+            }
+            break;
+        }
+        if (IsSpace(*p))
+            return std::nullopt;
+        if (!IsDigit(*p))
+            return std::nullopt;
+        strWhole.insert(strWhole.end(), *p);
+    }
+    if (*p) {
+        return std::nullopt;
+    }
+    if (strWhole.size() > 10) // guard against 63 bit overflow
+        return std::nullopt;
+    if (nUnits < 0 || nUnits > COIN)
+        return std::nullopt;
+    int64_t nWhole = atoi64(strWhole);
+
+    return CAmount{nWhole * COIN + nUnits};
 }
